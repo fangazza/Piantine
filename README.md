@@ -1,3 +1,5 @@
+![Schema](piantine_schema.png)
+
 # Piantine
 ESP32 greenhouse
 
@@ -15,5 +17,3 @@ ESP32 greenhouse
 - Temp&Humidity (DHT11): GPIO32
 - Light (HW-486): A6
 - Clock: GPIO26, GPIO27, GPIO14
-
-![Schema](piantine_schema.png)
