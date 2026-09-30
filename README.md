@@ -8,7 +8,7 @@ ESP32 greenhouse
 - Adafruit Unified Sensor by Adafruit
 - AsyncTCP by ESP32Async
 - ESP Async WebServer by ESP32Async
-- DHT sensori library by Adafruit
+- DHT Sensor Library by Adafruit
 - Rtc by Makuna (https://github.com/Makuna/Rtc)
 
 ## Wiring
