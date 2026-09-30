@@ -4,6 +4,15 @@
 #include <ESPAsyncWebServer.h>
 #include <Arduino_JSON.h>
 #include <DHT.h>
+#include <ThreeWire.h>
+#include <RtcDS1302.h>
+
+// RTClock
+const int IO = 27;    // DAT
+const int SCLK = 14;  // CLK
+const int CE = 26;    // RST
+ThreeWire myWire(IO, SCLK, CE);
+RtcDS1302<ThreeWire> Rtc(myWire);
 
 // Air sensor 
 #define DHT_SENSOR_PIN  32 
@@ -374,6 +383,7 @@ const char index_html[] PROGMEM = R"rawliteral(
       <p class="state battery">Batteria: <span id="battVal"></span></p>
       <p class="state light">Light: <span id="lightVal"></span></p>
       <p class="state time">Uptime: <span id="timeVal"></span></p>
+      <p class="state date">Date & Time: <span id="dateVal"></span></p>
       <p class="msg"></p>
     </div>        
   </div>
@@ -486,7 +496,8 @@ const char index_html[] PROGMEM = R"rawliteral(
         document.querySelector('.battery').classList.remove('warning');
       }
 
-      document.getElementById('timeVal').innerHTML = myData[4] +" ";
+      document.getElementById('timeVal').innerHTML = myData[4] +"";
+      document.getElementById('dateVal').innerHTML = myData[7] +"";
 
       // Light
       lightVal = Math.floor(map_range(myData[6], 4095, 0, 0, 100));
@@ -526,6 +537,9 @@ void notifyClients() {
   int runSeconds=secsRemaining%60;
   String totTime = String(runHours) + ':' + String(runMinutes) + ':' + String(runSeconds);
 
+  RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
+  String DTnow = printDateTime(compiled);
+
   // Define JSON array
   JSONVar myArray;
   myArray[0]=String(water);
@@ -534,7 +548,8 @@ void notifyClients() {
   myArray[3]=String(pump);
   myArray[4]=String(totTime);
   myArray[5]=String(battery);  
-  myArray[6]=String(lightValue);    
+  myArray[6]=String(lightValue);
+  myArray[7]=String(DTnow);
   String jsonString = JSON.stringify(myArray);  
   ws.textAll(jsonString);
 }
@@ -590,9 +605,68 @@ String processor(const String& var){
   return String();
 }
 
+// void printDateTime(const RtcDateTime& dt) {
+//   char datestring[20];
+
+//   snprintf_P(datestring,
+//              countof(datestring),
+//              PSTR("%02u/%02u/%04u %02u:%02u:%02u"),
+//              dt.Day(),
+//              dt.Month(),
+//              dt.Year(),
+//              dt.Hour(),
+//              dt.Minute(),
+//              dt.Second());
+//   Serial.print(datestring);
+// }
+
+String printDateTime(const RtcDateTime& dt) {
+  char datestring[17];
+
+  snprintf_P(datestring,
+             countof(datestring),
+             PSTR("%02u/%02u/%04u %02u:%02u"),
+             dt.Day(),
+             dt.Month(),
+             dt.Year(),
+             dt.Hour(),
+             dt.Minute());
+  return String(datestring);
+}
+
+
 // --------------------------------------------------
 void setup(){
   Serial.begin(115200);
+
+  // Realtime Clock
+  RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
+  Serial.println(printDateTime(compiled));
+
+  if (!Rtc.IsDateTimeValid()) {
+    // Common Causes:
+    //    1) first time you ran and the device wasn't running yet
+    //    2) the battery on the device is low or even missing
+    Serial.println("RTC lost confidence in the DateTime!");
+    Rtc.SetDateTime(compiled);
+  }
+  if (Rtc.GetIsWriteProtected()) {
+    Serial.println("RTC was write protected, enabling writing now");
+    Rtc.SetIsWriteProtected(false);
+  }
+  if (!Rtc.GetIsRunning()) {
+    Serial.println("RTC was not actively running, starting now");
+    Rtc.SetIsRunning(true);
+  }
+  RtcDateTime now = Rtc.GetDateTime();
+  if (now < compiled) {
+    Serial.println("RTC is older than compile time!  (Updating DateTime)");
+    Rtc.SetDateTime(compiled);
+  } else if (now > compiled) {
+    Serial.println("RTC is newer than compile time. (this is expected)");
+  } else if (now == compiled) {
+    Serial.println("RTC is the same as compile time! (not expected but all is fine)");
+  }  
 
   // Initialize water pump
   pinMode(RELAY_PIN, OUTPUT);
@@ -623,6 +697,11 @@ void setup(){
 
 // --------------------------------------------------
 void loop() {
+  // RTClock
+  RtcDateTime now = Rtc.GetDateTime();
+  //printDateTime(now);
+  //Serial.println();
+
   // Light Sensor
   int lightValue = analogRead(lightSensorPin);  // 0 (bright) 4095 (dark)
   //Serial.print("Light Sensor: ");
