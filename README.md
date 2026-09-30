@@ -15,5 +15,6 @@ ESP32 greenhouse
 - Relais: GPIO12
 - Water level (YL-69): A6
 - Temp&Humidity (DHT11): GPIO32
-- Light (HW-486): A6
-- Clock: GPIO26, GPIO27, GPIO14
+- Light (HW-486): A5
+- RT Clock: GPIO26, GPIO27, GPIO14
+- Battery: A3
