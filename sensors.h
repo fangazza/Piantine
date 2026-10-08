@@ -1,3 +1,7 @@
+/*
+  Sensors Setup
+*/
+
 // RTClock
 const int IO = 27;    // DAT
 const int SCLK = 14;  // CLK

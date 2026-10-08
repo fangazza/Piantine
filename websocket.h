@@ -1,5 +1,6 @@
-// Web Socket
-
+/*
+  Websocket Setup
+*/
 const char* hostname;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
