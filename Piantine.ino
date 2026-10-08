@@ -38,6 +38,7 @@ const long pumpInterval = 5000;   // 5 seconds
 // WiFi
 const char* ssid = "Rick&Morty";
 const char* password = "PippiCalzelunghe";
+const char* hostname;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
@@ -380,6 +381,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     </div>    
     <div class="card sys">
       <h2 class="info">Info</h2>  
+      <p class="state hostname">Hostname: <span id="hostname"></span></p>
       <p class="state battery">Batteria: <span id="battVal"></span></p>
       <p class="state light">Light: <span id="lightVal"></span></p>
       <p class="state time">Uptime: <span id="timeVal"></span></p>
@@ -501,7 +503,10 @@ const char index_html[] PROGMEM = R"rawliteral(
 
       // Light
       lightVal = Math.floor(map_range(myData[6], 4095, 0, 0, 100));
-      document.getElementById('lightVal').innerHTML = lightVal + "%%";      
+      document.getElementById('lightVal').innerHTML = lightVal + "%%";    
+
+      // Hostname
+      document.querySelector('#hostname').innerHTML = "" + myData[8];
     }
 
     function onLoad(event) {
@@ -550,6 +555,7 @@ void notifyClients() {
   myArray[5]=String(battery);  
   myArray[6]=String(lightValue);
   myArray[7]=String(DTnow);
+  myArray[8]=String(hostname);  
   String jsonString = JSON.stringify(myArray);  
   ws.textAll(jsonString);
 }
@@ -676,12 +682,25 @@ void setup(){
   
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
+  
+  // Custom hostname
+  randomSeed(analogRead(3));    // Random from unconnected pin
+  const int randNumber = random(999);  
+  char charArray[3];
+  char hname [15];
+  itoa(randNumber, charArray, 10);
+  strcpy (hname, "piantine-");
+  strcat (hname, charArray);
+  WiFi.setHostname(hname);
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi..");
   }
-
-  // Print ESP Local IP Address
+  hostname = WiFi.getHostname();
+  Serial.print("Hostname: ");
+  Serial.println(WiFi.getHostname());
+  Serial.print("IP: ");
   Serial.println(WiFi.localIP());
 
   initWebSocket();
