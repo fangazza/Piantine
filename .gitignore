@@ -75,3 +75,5 @@ debug.xml
 /affected_sketches.txt
 /affected_examples.txt
 /ctags_*
+
+.theia
