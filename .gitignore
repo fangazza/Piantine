@@ -76,4 +76,4 @@ debug.xml
 /affected_examples.txt
 /ctags_*
 
-.theia
+.theia/
