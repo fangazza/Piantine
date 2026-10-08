@@ -6,6 +6,7 @@
 #include <DHT.h>
 #include <ThreeWire.h>
 #include <RtcDS1302.h>
+#include <Preferences.h>
 
 // RTClock
 const int IO = 27;    // DAT
@@ -34,6 +35,15 @@ unsigned long previousMillis = 0;
 
 // Water Pump Duration
 const long pumpInterval = 5000;   // 5 seconds
+
+// Flash drive (Preferences)
+Preferences prefs;
+typedef struct {
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t setting1;
+  uint8_t setting2;
+} schedule_t;
 
 // WiFi
 const char* ssid = "Rick&Morty";
@@ -133,6 +143,10 @@ const char index_html[] PROGMEM = R"rawliteral(
     min-height: 15em;
     max-height: max-content;    
   }  
+  .card.sys {
+    font-size: 11pt;
+    line-height: 1.5;
+  }
   h2 {
     font-size: 15pt;
     line-height: 1;
@@ -273,7 +287,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     display: block;
     width: 100%%;
     margin: 0;
-    padding: 0.5em 0;
+    padding: 1.5em 0;
     bottom: 0;
     left: 0;
     right: 0;
@@ -283,6 +297,14 @@ const char index_html[] PROGMEM = R"rawliteral(
     font-family: courier;
     font-weight: normal;
     text-align: center;
+  }
+  #state::after {
+    content: 'DATA';
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 0.5em;
+    background-color: #000;
   }
   .gauge-container {
     width: 94%%;
@@ -381,11 +403,12 @@ const char index_html[] PROGMEM = R"rawliteral(
     </div>    
     <div class="card sys">
       <h2 class="info">Info</h2>  
-      <p class="state hostname">Hostname: <span id="hostname"></span></p>
       <p class="state battery">Batteria: <span id="battVal"></span></p>
+      <p class="state hostname">Hostname: <span id="hostname"></span></p>
       <p class="state light">Light: <span id="lightVal"></span></p>
       <p class="state time">Uptime: <span id="timeVal"></span></p>
       <p class="state date">Date & Time: <span id="dateVal"></span></p>
+      <p class="state">Device riavviato <span id="reboot"></span> volte.</p>
       <p class="msg"></p>
     </div>        
   </div>
@@ -507,6 +530,9 @@ const char index_html[] PROGMEM = R"rawliteral(
 
       // Hostname
       document.querySelector('#hostname').innerHTML = "" + myData[8];
+
+      // Reboot counter
+      document.querySelector('#reboot').innerHTML = "" + myData[9];
     }
 
     function onLoad(event) {
@@ -556,6 +582,7 @@ void notifyClients() {
   myArray[6]=String(lightValue);
   myArray[7]=String(DTnow);
   myArray[8]=String(hostname);  
+  myArray[9]=String(prefs.getInt("counter"));
   String jsonString = JSON.stringify(myArray);  
   ws.textAll(jsonString);
 }
@@ -692,20 +719,55 @@ void setup(){
   strcpy (hname, "piantine-");
   strcat (hname, charArray);
   WiFi.setHostname(hname);
-
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi..");
-  }
+  }  
   hostname = WiFi.getHostname();
   Serial.print("Hostname: ");
   Serial.println(WiFi.getHostname());
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
 
-  initWebSocket();
+  /*
+    Example: how to use Preferences (nvs) to store a structure.
+    Note that the maximum size of a putBytes is 496K
+    or 97% of the nvs partition size.  nvs has significant overhead,
+    so should not be used for data that will change often.
+  */
+  // Preferences
+  prefs.begin("my-app");
+  int counter = prefs.getInt("counter", 1); // default to 1
+  Serial.print("Reboot count: ");
+  Serial.println(counter);
+  counter++;
+  prefs.putInt("counter", counter);
+  
+  // Preferences
+  prefs.begin("schedule");                              // use "schedule" namespace
+  uint8_t content[] = {9, 30, 235, 255, 20, 15, 0, 1};  // two entries
+  prefs.putBytes("schedule", content, sizeof(content));
+  size_t schLen = prefs.getBytesLength("schedule");
+  char buffer[schLen];  // prepare a buffer for the data
+  prefs.getBytes("schedule", buffer, schLen);
+  if (schLen % sizeof(schedule_t)) {  // simple check that data fits
+    log_e("Data is not correct size!");
+    return;
+  }
+  schedule_t *schedule = (schedule_t *)buffer;  // cast the bytes into a struct ptr
+  Serial.printf("%02u:%02u %u/%u\n", schedule[1].hour, schedule[1].minute, schedule[1].setting1, schedule[1].setting2);
+  schedule[2] = {8, 30, 20, 21};  // add a third entry (unsafely)
+                                  // force the struct array into a byte array
+  prefs.putBytes("schedule", schedule, 3 * sizeof(schedule_t));
+  schLen = prefs.getBytesLength("schedule");
+  char buffer2[schLen];
+  prefs.getBytes("schedule", buffer2, schLen);
+  for (int x = 0; x < schLen; x++) {
+    Serial.printf("%02X ", buffer[x]);
+  }
 
   // Route for root / web page
+  initWebSocket();
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(200, "text/html", index_html, processor);
   });

@@ -10,6 +10,7 @@ ESP32 greenhouse
 - ESP Async WebServer by ESP32Async
 - DHT Sensor Library by Adafruit
 - Rtc by Makuna (https://github.com/Makuna/Rtc)
+- Preferences by Volodymyr Shymanskyy (https://github.com/vshymanskyy/Preferences)
 
 ## Wiring
 - Relais: GPIO12
