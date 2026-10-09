@@ -1,4 +1,4 @@
-![Schema](piantineschema.png)
+![Schema](./images/piantineschema.png)
 
 # Piantine
 ESP32 greenhouse
